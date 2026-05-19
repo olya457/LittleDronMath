@@ -21,10 +21,31 @@ type QuizScreenProps = {
   onComplete: (score: number, total: number) => void;
 };
 
+type AnswerState = 'correct' | 'wrong';
+type TrailResult = AnswerState | null;
+
+const trailNodes = [
+  {left: 10, top: 52},
+  {left: 28, top: 68},
+  {left: 46, top: 52},
+  {left: 64, top: 34},
+  {left: 82, top: 52},
+];
+
+const trailLines = [
+  {left: 17, top: 59, rotate: '20deg'},
+  {left: 35, top: 60, rotate: '-18deg'},
+  {left: 53, top: 45, rotate: '-18deg'},
+  {left: 71, top: 43, rotate: '18deg'},
+];
+
 export function QuizScreen({kind, levelIndex, onBack, onComplete}: QuizScreenProps) {
   const [taskIndex, setTaskIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [score, setScore] = useState(0);
+  const [answerResults, setAnswerResults] = useState<TrailResult[]>(() =>
+    Array(5).fill(null),
+  );
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {height, width} = useWindowDimensions();
   const compact = height < 720 || width < 360;
@@ -47,9 +68,14 @@ export function QuizScreen({kind, levelIndex, onBack, onComplete}: QuizScreenPro
       return;
     }
 
-    const nextScore = optionIndex === task.correctIndex ? score + 1 : score;
+    const isAnswerCorrect = optionIndex === task.correctIndex;
+    const nextResults = [...answerResults];
+    const nextScore = isAnswerCorrect ? score + 1 : score;
+
+    nextResults[taskIndex] = isAnswerCorrect ? 'correct' : 'wrong';
     setSelected(optionIndex);
     setScore(nextScore);
+    setAnswerResults(nextResults);
     timer.current = setTimeout(() => {
       if (taskIndex === level.tasks.length - 1) {
         onComplete(nextScore, level.tasks.length);
@@ -78,11 +104,7 @@ export function QuizScreen({kind, levelIndex, onBack, onComplete}: QuizScreenPro
           <View style={[styles.promptCard, compact && styles.promptCardCompact]}>
             {task.sequence ? (
               <>
-                <Image
-                  source={images.dragonSequenceBody}
-                  resizeMode="contain"
-                  style={styles.sequenceBody}
-                />
+                <SequenceTrail results={answerResults} currentIndex={taskIndex} />
                 <Text style={styles.sequenceText}>{task.sequence}</Text>
                 <Text style={styles.promptQuestion}>{task.question}</Text>
               </>
@@ -132,6 +154,66 @@ export function QuizScreen({kind, levelIndex, onBack, onComplete}: QuizScreenPro
         </View>
       </View>
     </ScreenShell>
+  );
+}
+
+function SequenceTrail({
+  results,
+  currentIndex,
+}: {
+  results: TrailResult[];
+  currentIndex: number;
+}) {
+  return (
+    <View style={styles.sequenceWrap}>
+      {trailLines.map((line, index) => {
+        const lineResult = results[index + 1];
+
+        return (
+          <View
+            key={`${line.left}-${line.top}`}
+            style={[
+              styles.trailLine,
+              {
+                left: `${line.left}%`,
+                top: `${line.top}%`,
+                transform: [{rotate: line.rotate}],
+              },
+              lineResult === 'correct' && styles.trailLineCorrect,
+              lineResult === 'wrong' && styles.trailLineWrong,
+            ]}
+          />
+        );
+      })}
+      {trailNodes.map((node, index) => {
+        const result = results[index];
+        const isCurrent = index === currentIndex && !result;
+
+        return (
+          <View
+            key={`${node.left}-${node.top}`}
+            style={[
+              styles.trailNode,
+              {
+                left: `${node.left}%`,
+                top: `${node.top}%`,
+              },
+              isCurrent && styles.trailNodeCurrent,
+              result === 'correct' && styles.trailNodeCorrect,
+              result === 'wrong' && styles.trailNodeWrong,
+            ]}>
+            <Text
+              style={[
+                styles.trailNodeText,
+                (isCurrent || result) && styles.trailNodeTextActive,
+              ]}>
+              {result === 'correct' ? '✓' : result === 'wrong' ? '×' : isCurrent ? '?' : index + 1}
+            </Text>
+          </View>
+        );
+      })}
+      <Text style={styles.trailDragon}>🐲</Text>
+    </View>
   );
 }
 
@@ -194,10 +276,83 @@ const styles = StyleSheet.create({
     minHeight: 100,
     padding: 14,
   },
-  sequenceBody: {
-    width: '100%',
-    height: 70,
-    opacity: 0.92,
+  sequenceWrap: {
+    width: 270,
+    maxWidth: '100%',
+    height: 94,
+    alignSelf: 'center',
+    justifyContent: 'center',
+  },
+  trailLine: {
+    position: 'absolute',
+    width: 56,
+    height: 11,
+    borderRadius: 20,
+    backgroundColor: '#c73505',
+    shadowColor: colors.orange,
+    shadowOpacity: 0.45,
+    shadowRadius: 7,
+  },
+  trailLineCorrect: {
+    backgroundColor: '#15923b',
+    shadowColor: colors.green,
+  },
+  trailLineWrong: {
+    backgroundColor: '#9a0d20',
+    shadowColor: colors.red,
+  },
+  trailNode: {
+    position: 'absolute',
+    width: 42,
+    height: 42,
+    marginLeft: -21,
+    marginTop: -21,
+    borderRadius: 21,
+    borderWidth: 2,
+    borderColor: colors.borderSoft,
+    backgroundColor: '#170302',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trailNodeCurrent: {
+    borderColor: colors.orangeLight,
+    backgroundColor: '#6b2600',
+    shadowColor: colors.orangeLight,
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
+  },
+  trailNodeCorrect: {
+    borderColor: colors.green,
+    backgroundColor: '#13913c',
+    shadowColor: colors.green,
+    shadowOpacity: 0.75,
+    shadowRadius: 10,
+  },
+  trailNodeWrong: {
+    borderColor: colors.red,
+    backgroundColor: '#970d22',
+    shadowColor: colors.red,
+    shadowOpacity: 0.75,
+    shadowRadius: 10,
+  },
+  trailNodeText: {
+    color: colors.muted,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  trailNodeTextActive: {
+    color: colors.cream,
+    fontSize: 20,
+    lineHeight: 25,
+  },
+  trailDragon: {
+    position: 'absolute',
+    right: 0,
+    top: 24,
+    fontSize: 38,
+    lineHeight: 46,
   },
   sequenceText: {
     color: colors.orangeLight,
