@@ -1,0 +1,15 @@
+export const images = {
+  appIcon: require('./app_icon.png'),
+  dragonSmall: require('./dragon_small.png'),
+  dragonSad: require('./dragon_sad.png'),
+  dragonSequenceBody: require('./dragon_sequence_body.png'),
+  onboardingWorld: require('./dragon_onboarding_world.png'),
+  onboardingTricks: require('./dragon_onboarding_tricks.png'),
+  onboardingPattern: require('./dragon_onboarding_pattern.png'),
+  onboardingChallenge: require('./dragon_onboarding_challenge.png'),
+  onboardingPower: require('./dragon_onboarding_power.png'),
+  sequenceIntro: require('./dragon_sequence_intro.png'),
+  formulaIntro: require('./dragon_formula_intro.png'),
+  resultSuccess: require('./dragon_result_success.png'),
+  resultRetry: require('./dragon_result_retry.png'),
+};

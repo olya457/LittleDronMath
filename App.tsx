@@ -1,131 +1,91 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import {AppNavigator} from './src/navigation/AppNavigator';
+import type {SavedWisdomController} from './src/navigation/types';
+import {LoadingScreen} from './src/screens/LoadingScreen';
+import {OnboardingScreen} from './src/screens/OnboardingScreen';
 import {
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+  loadOnboardingDone,
+  loadSavedTipIds,
+  saveOnboardingDone,
+  saveTipIds,
+} from './src/storage/storage';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
-
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+type Stage = 'loading' | 'onboarding' | 'main';
 
 function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+  const [stage, setStage] = useState<Stage>('loading');
+  const [storageReady, setStorageReady] = useState(false);
+  const [loadingDone, setLoadingDone] = useState(false);
+  const [onboardingDone, setOnboardingDone] = useState(false);
+  const [savedIds, setSavedIds] = useState<string[]>([]);
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
+  useEffect(() => {
+    let mounted = true;
 
-  /*
-   * To keep the template simple and small we're adding padding to prevent view
-   * from rendering under the System UI.
-   * For bigger apps the reccomendation is to use `react-native-safe-area-context`:
-   * https://github.com/AppAndFlow/react-native-safe-area-context
-   *
-   * You can read more about it here:
-   * https://github.com/react-native-community/discussions-and-proposals/discussions/827
-   */
-  const safePadding = '5%';
+    const load = async () => {
+      try {
+        const [done, ids] = await Promise.all([loadOnboardingDone(), loadSavedTipIds()]);
+        if (mounted) {
+          setOnboardingDone(done);
+          setSavedIds(ids);
+        }
+      } finally {
+        if (mounted) {
+          setStorageReady(true);
+        }
+      }
+    };
 
-  return (
-    <View style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        style={backgroundStyle}>
-        <View style={{paddingRight: safePadding}}>
-          <Header/>
-        </View>
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-            paddingHorizontal: safePadding,
-            paddingBottom: safePadding,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </View>
+    load().catch(() => undefined);
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (loadingDone && storageReady) {
+      setStage(onboardingDone ? 'main' : 'onboarding');
+    }
+  }, [loadingDone, onboardingDone, storageReady]);
+
+  const finishOnboarding = useCallback(async () => {
+    setOnboardingDone(true);
+    setStage('main');
+    await saveOnboardingDone();
+  }, []);
+
+  const persistSaved = useCallback(async (nextIds: string[]) => {
+    setSavedIds(nextIds);
+    await saveTipIds(nextIds);
+  }, []);
+
+  const saved = useMemo<SavedWisdomController>(
+    () => ({
+      savedIds,
+      isSaved: (id: string) => savedIds.includes(id),
+      toggleSaved: async (id: string) => {
+        const nextIds = savedIds.includes(id)
+          ? savedIds.filter(savedId => savedId !== id)
+          : [id, ...savedIds];
+        await persistSaved(nextIds);
+      },
+      removeSaved: async (id: string) => {
+        await persistSaved(savedIds.filter(savedId => savedId !== id));
+      },
+    }),
+    [persistSaved, savedIds],
   );
-}
 
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
+  if (stage === 'loading') {
+    return <LoadingScreen onFinish={() => setLoadingDone(true)} />;
+  }
+
+  if (stage === 'onboarding') {
+    return <OnboardingScreen onDone={finishOnboarding} />;
+  }
+
+  return <AppNavigator saved={saved} />;
+}
 
 export default App;
