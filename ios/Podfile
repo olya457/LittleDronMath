@@ -31,5 +31,21 @@ target 'LittleDronMath' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Work around Xcode 26.4 + fmt 11.0.2 consteval archive failures.
+    fmt_target = installer.pods_project.targets.find { |target| target.name == 'fmt' }
+    fmt_target&.build_configurations&.each do |build_configuration|
+      build_configuration.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+    end
+
+    fmt_base_header = File.join(installer.sandbox.root.to_s, 'fmt', 'include', 'fmt', 'base.h')
+    if File.exist?(fmt_base_header)
+      contents = File.read(fmt_base_header)
+      patched_contents = contents.gsub('#  define FMT_USE_CONSTEVAL 1', '#  define FMT_USE_CONSTEVAL 0')
+      if patched_contents != contents
+        File.chmod(File.stat(fmt_base_header).mode | 0o200, fmt_base_header)
+        File.write(fmt_base_header, patched_contents)
+      end
+    end
   end
 end
