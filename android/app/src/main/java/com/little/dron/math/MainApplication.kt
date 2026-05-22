@@ -1,4 +1,4 @@
-package com.littledronmath
+package com.little.dron.math
 
 import android.app.Application
 import com.facebook.react.PackageList
