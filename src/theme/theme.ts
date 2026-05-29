@@ -1,8 +1,8 @@
 import {Platform, StatusBar} from 'react-native';
 
 export const colors = {
-  background: '#180303',
-  backgroundDeep: '#0b0101',
+  background: '#700303ff',
+  backgroundDeep: '#572e2eff',
   card: '#260707',
   cardWarm: '#642601',
   cardWarmDark: '#3b1202',

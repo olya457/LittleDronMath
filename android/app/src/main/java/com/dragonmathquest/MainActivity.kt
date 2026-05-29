@@ -1,4 +1,4 @@
-package com.little.dron.math
+package com.dragonmathquest
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
